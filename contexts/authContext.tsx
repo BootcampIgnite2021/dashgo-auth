@@ -42,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     if (token) {
       api.get<UserProps>("/me").then((response) => {
-        const { email, permissions, roles } = response.data;
+        const { email, permissions, roles } = response?.data;
         setUser({ email, roles, permissions });
       });
     }
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signIn = async (credentials: CredentialsProps) => {
     try {
       const response = await api.post<ResponseUser>("sessions", credentials);
-      const { permissions, roles, refreshToken, token } = response.data;
+      const { permissions, roles, refreshToken, token } = response?.data;
       const { email } = credentials;
 
       setCookie(undefined, "nextauth.token", token, {
