@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { parseCookies, setCookie } from "nookies";
 import { signOut } from "../contexts/authContext";
+import { AuthTokenError } from "./errors/AuthTokenError";
 
 interface AxiosErrorResponse {
   code?: string;
@@ -27,9 +28,9 @@ export function setupAPIClient(ctx = undefined) {
     (response) => {
       return response;
     },
-    (error: AxiosError<AxiosErrorResponse>) => {
+    (error: AxiosError) => {
       if (error?.response?.status === 401) {
-        if (error?.response?.data?.code === "token.expired") {
+        if (error.response.data?.code === "token.expired") {
           cookies = parseCookies(ctx);
 
           const { "nextauth.refreshToken": refreshToken } = cookies;
@@ -46,7 +47,7 @@ export function setupAPIClient(ctx = undefined) {
                 const { token } = response.data;
 
                 setCookie(ctx, "nextauth.token", token, {
-                  maxAge: 60 * 60 * 24 * 30, //30 days
+                  maxAge: 60 * 60 * 24 * 30, // 30 days
                   path: "/",
                 });
 
@@ -55,10 +56,12 @@ export function setupAPIClient(ctx = undefined) {
                   "nextauth.refreshToken",
                   response.data.refreshToken,
                   {
-                    maxAge: 60 * 60 * 24 * 30, //30 days
+                    maxAge: 60 * 60 * 24 * 30, // 30 days
                     path: "/",
                   }
                 );
+
+                api.defaults.headers["Authorization"] = `Bearer ${token}`;
 
                 failedRequestQueue.forEach((request) =>
                   request.onSuccess(token)
@@ -69,10 +72,8 @@ export function setupAPIClient(ctx = undefined) {
                 failedRequestQueue.forEach((request) => request.onFailure(err));
                 failedRequestQueue = [];
 
-                if (typeof window !== "undefined") {
+                if (process.browser) {
                   signOut();
-                } else {
-                  return Promise.reject(err);
                 }
               })
               .finally(() => {
@@ -85,7 +86,6 @@ export function setupAPIClient(ctx = undefined) {
               onSuccess: (token: string) => {
                 if (originalConfig) {
                   originalConfig.headers["Authorization"] = `Bearer ${token}`;
-
                   resolve(api(originalConfig));
                 }
               },
@@ -97,14 +97,13 @@ export function setupAPIClient(ctx = undefined) {
         } else {
           if (typeof window !== "undefined") {
             signOut();
-            // } else {
-            //   Promise.reject(new AuthTokenError());
-            // }
+          } else {
+            return Promise.reject(new AuthTokenError());
           }
         }
-
-        return Promise.reject(error);
       }
+
+      return Promise.reject(error);
     }
   );
 
