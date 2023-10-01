@@ -3,7 +3,7 @@ import Router from "next/router";
 import { setCookie, parseCookies, destroyCookie } from "nookies";
 import { api } from "../services/apiClient";
 
-type UserProps = {
+export type UserProps = {
   email: string;
   permissions: Array<string>;
   roles: Array<string>;
